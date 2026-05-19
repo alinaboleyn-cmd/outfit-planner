@@ -1629,15 +1629,35 @@ async function processRemoveBackground(id) {
     bItem.noBg = true;
   } catch (e) {
     bItem.noBg = false;
-    toast('Could not remove background — try uploading the image from your computer instead of dragging from the web.', 'error');
+    toast('Could not remove background — the image may be blocked or unavailable.', 'error');
   }
   renderBuilderCanvas();
 }
 
-function removeBgFromUrl(imageUrl) {
+async function removeBgFromUrl(imageUrl) {
+  // For external URLs, fetch as a local blob to avoid canvas taint restriction.
+  // Try direct fetch first, fall back to CORS proxy.
+  async function toBlobUrl(url) {
+    if (url.startsWith('data:') || url.startsWith('blob:')) return null;
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('bad status');
+      return URL.createObjectURL(await r.blob());
+    } catch (_) {}
+    try {
+      const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+      if (!r.ok) throw new Error('bad status');
+      return URL.createObjectURL(await r.blob());
+    } catch (_) {}
+    return null;
+  }
+
+  const blobUrl = await toBlobUrl(imageUrl);
+  const src = blobUrl || imageUrl;
+
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    if (!blobUrl) img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas');
@@ -1648,13 +1668,18 @@ function removeBgFromUrl(imageUrl) {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         floodFillRemoveBg(imageData);
         ctx.putImageData(imageData, 0, 0);
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
         resolve(canvas.toDataURL('image/png'));
       } catch (e) {
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
         reject(e);
       }
     };
-    img.onerror = () => reject(new Error('Image load failed'));
-    img.src = imageUrl;
+    img.onerror = () => {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      reject(new Error('Image load failed'));
+    };
+    img.src = src;
   });
 }
 
