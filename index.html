@@ -459,11 +459,17 @@ nav button.active { background: var(--accent-light); color: var(--accent-dark); 
 .canvas-item img {
   width: 100%;
   aspect-ratio: 3/4;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   pointer-events: none;
   background: var(--surface2);
+}
+.canvas-item.no-bg img {
+  background: transparent;
+  aspect-ratio: unset;
+  max-height: 220px;
+  object-fit: contain;
 }
 .canvas-item .ci-placeholder {
   width: 100%;
@@ -524,9 +530,6 @@ nav button.active { background: var(--accent-light); color: var(--accent-dark); 
 .ci-btn-danger:hover { background: #d94040; }
 .ci-btn-on { background: var(--accent); }
 .ci-btn-on:hover { background: var(--accent-dark); }
-
-.canvas-item.no-bg img { mix-blend-mode: multiply; }
-.canvas-item.no-bg .ci-placeholder { mix-blend-mode: multiply; background: white; }
 
 /* ── OUTFITS TAB ── */
 .outfits-layout { padding: 20px 24px; }
@@ -1517,21 +1520,23 @@ function buildFreeCanvas() {
           <span>Click items in the wardrobe to place them here</span>
         </div>
       ` : state.builderItems.map((bItem) => {
-        const {id, x, y, noBg} = bItem;
+        const {id, x, y, noBg, processedUrl} = bItem;
         const item = getItemById(id);
         if (!item) return '';
         const cat = getCategoryInfo(item.category);
+        const displayUrl = (noBg === true && processedUrl) ? processedUrl : item.imageUrl;
+        const isLoading = noBg === 'loading';
         return `
-          <div class="canvas-item ${noBg ? 'no-bg' : ''}" data-canvas-id="${id}" style="left:${x}px;top:${y}px;">
-            ${item.imageUrl
-              ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+          <div class="canvas-item${noBg === true ? ' no-bg' : ''}" data-canvas-id="${id}" style="left:${x}px;top:${y}px;">
+            ${displayUrl
+              ? `<img src="${escHtml(displayUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
               : ''}
-            <div class="ci-placeholder" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
+            <div class="ci-placeholder" ${displayUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
             <div class="ci-label">${escHtml(item.name)}</div>
             <div class="ci-controls">
               <button class="ci-btn" data-bring-front="${id}" title="Bring to front">↑</button>
               <button class="ci-btn" data-send-back="${id}" title="Send to back">↓</button>
-              <button class="ci-btn ${noBg ? 'ci-btn-on' : ''}" data-toggle-bg="${id}" title="${noBg ? 'Show background' : 'Remove background'}">◻</button>
+              <button class="ci-btn ${noBg === true ? 'ci-btn-on' : ''}" data-toggle-bg="${id}" title="${noBg === true ? 'Restore background' : 'Remove background'}" ${isLoading ? 'disabled' : ''}>${isLoading ? '…' : '◻'}</button>
               <button class="ci-btn ci-btn-danger" data-remove-from-builder="${id}" title="Remove">✕</button>
             </div>
           </div>
@@ -1600,8 +1605,95 @@ function onCanvasMouseUp() {
 }
 
 function toggleNoBg(id) {
-  const item = state.builderItems.find(i => i.id === id);
-  if (item) { item.noBg = !item.noBg; renderBuilderCanvas(); }
+  const bItem = state.builderItems.find(i => i.id === id);
+  if (!bItem || bItem.noBg === 'loading') return;
+  if (bItem.noBg === true) {
+    bItem.noBg = false;
+    renderBuilderCanvas();
+  } else {
+    processRemoveBackground(id);
+  }
+}
+
+async function processRemoveBackground(id) {
+  const bItem = state.builderItems.find(i => i.id === id);
+  const wardrobeItem = getItemById(id);
+  if (!bItem || !wardrobeItem || !wardrobeItem.imageUrl) return;
+
+  bItem.noBg = 'loading';
+  renderBuilderCanvas();
+
+  try {
+    const result = await removeBgFromUrl(wardrobeItem.imageUrl);
+    bItem.processedUrl = result;
+    bItem.noBg = true;
+  } catch (e) {
+    bItem.noBg = false;
+    toast('Could not remove background — try uploading the image from your computer instead of dragging from the web.', 'error');
+  }
+  renderBuilderCanvas();
+}
+
+function removeBgFromUrl(imageUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        floodFillRemoveBg(imageData);
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch (e) {
+        reject(e);
+      }
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = imageUrl;
+  });
+}
+
+function floodFillRemoveBg(imageData) {
+  const { data, width, height } = imageData;
+  const visited = new Uint8Array(width * height);
+
+  function isBg(idx) {
+    const a = data[idx + 3];
+    if (a < 20) return true;
+    const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+    // Detect near-white, near-gray or near-light backgrounds
+    const brightness = (r + g + b) / 3;
+    const saturation = Math.max(r, g, b) - Math.min(r, g, b);
+    return brightness > 210 && saturation < 30;
+  }
+
+  const queue = [];
+
+  function enqueue(x, y) {
+    const pos = y * width + x;
+    if (x < 0 || x >= width || y < 0 || y >= height || visited[pos]) return;
+    const idx = pos * 4;
+    if (!isBg(idx)) return;
+    visited[pos] = 1;
+    queue.push(pos);
+  }
+
+  // Seed from all four edges
+  for (let x = 0; x < width; x++) { enqueue(x, 0); enqueue(x, height - 1); }
+  for (let y = 0; y < height; y++) { enqueue(0, y); enqueue(width - 1, y); }
+
+  while (queue.length) {
+    const pos = queue.pop();
+    data[pos * 4 + 3] = 0; // make transparent
+    const x = pos % width, y = (pos / width) | 0;
+    enqueue(x + 1, y); enqueue(x - 1, y);
+    enqueue(x, y + 1); enqueue(x, y - 1);
+  }
 }
 
 function bringToFront(id) {
