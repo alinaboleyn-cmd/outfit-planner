@@ -448,13 +448,13 @@ nav button.active { background: var(--accent-light); color: var(--accent-dark); 
   width: 140px;
   cursor: grab;
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow);
-  background: var(--surface);
+  background: transparent;
   user-select: none;
-  transition: box-shadow 0.15s;
+  transition: outline 0.1s;
+  outline: 2px solid transparent;
 }
-.canvas-item:hover { box-shadow: var(--shadow-lg); }
-.canvas-item.is-dragging { cursor: grabbing; box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 50; }
+.canvas-item:hover { outline-color: var(--accent); }
+.canvas-item.is-dragging { cursor: grabbing; outline-color: var(--accent); z-index: 50; }
 
 .canvas-item img {
   width: 100%;
@@ -477,34 +477,51 @@ nav button.active { background: var(--accent-light); color: var(--accent-dark); 
   pointer-events: none;
 }
 .canvas-item .ci-label {
-  padding: 5px 8px 6px;
+  padding: 4px 8px 5px;
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
+  background: rgba(255,255,255,0.92);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  opacity: 0;
+  transition: opacity 0.15s;
 }
-.canvas-item .ci-remove {
+.canvas-item:hover .ci-label { opacity: 1; }
+
+.ci-controls {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: -10px;
+  right: -10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+.canvas-item:hover .ci-controls { opacity: 1; }
+
+.ci-btn {
   width: 22px;
   height: 22px;
   border-radius: 50%;
   background: var(--text);
   color: white;
-  border: 2px solid var(--surface);
+  border: 2px solid white;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  transition: opacity 0.15s;
-  z-index: 1;
+  line-height: 1;
+  transition: background 0.12s;
 }
-.canvas-item:hover .ci-remove { opacity: 1; }
+.ci-btn:hover { background: var(--accent); }
+.ci-btn-danger { background: #b03030; }
+.ci-btn-danger:hover { background: #d94040; }
 
 /* ── OUTFITS TAB ── */
 .outfits-layout { padding: 20px 24px; }
@@ -1504,7 +1521,11 @@ function buildFreeCanvas() {
               : ''}
             <div class="ci-placeholder" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
             <div class="ci-label">${escHtml(item.name)}</div>
-            <button class="ci-remove" data-remove-from-builder="${id}" title="Remove">✕</button>
+            <div class="ci-controls">
+              <button class="ci-btn" data-bring-front="${id}" title="Bring to front">↑</button>
+              <button class="ci-btn" data-send-back="${id}" title="Send to back">↓</button>
+              <button class="ci-btn ci-btn-danger" data-remove-from-builder="${id}" title="Remove">✕</button>
+            </div>
           </div>
         `;
       }).join('')}
@@ -1529,7 +1550,7 @@ function setupCanvasDrag() {
   if (!canvas) return;
 
   canvas.addEventListener('mousedown', e => {
-    if (e.target.closest('.ci-remove')) return;
+    if (e.target.closest('.ci-controls')) return;
     const el = e.target.closest('.canvas-item');
     if (!el) return;
     e.preventDefault();
@@ -1542,12 +1563,12 @@ function setupCanvasDrag() {
   });
 
   canvas.addEventListener('click', e => {
-    const btn = e.target.closest('.ci-remove');
-    if (btn) {
-      toggleBuilderItem(btn.dataset.removeFromBuilder);
-      renderBuilderCanvas();
-      renderBuilderSidebar();
-    }
+    const rm = e.target.closest('[data-remove-from-builder]');
+    if (rm) { toggleBuilderItem(rm.dataset.removeFromBuilder); renderBuilderCanvas(); renderBuilderSidebar(); return; }
+    const bf = e.target.closest('[data-bring-front]');
+    if (bf) { bringToFront(bf.dataset.bringFront); return; }
+    const sb = e.target.closest('[data-send-back]');
+    if (sb) { sendToBack(sb.dataset.sendBack); return; }
   });
 }
 
@@ -1566,6 +1587,22 @@ function onCanvasMouseUp() {
   if (!canvasDrag) return;
   canvasDrag.el.classList.remove('is-dragging');
   canvasDrag = null;
+}
+
+function bringToFront(id) {
+  const idx = state.builderItems.findIndex(i => i.id === id);
+  if (idx === -1 || idx === state.builderItems.length - 1) return;
+  const [item] = state.builderItems.splice(idx, 1);
+  state.builderItems.push(item);
+  renderBuilderCanvas();
+}
+
+function sendToBack(id) {
+  const idx = state.builderItems.findIndex(i => i.id === id);
+  if (idx === -1 || idx === 0) return;
+  const [item] = state.builderItems.splice(idx, 1);
+  state.builderItems.unshift(item);
+  renderBuilderCanvas();
 }
 
 function renderBuilderToolbar() {
