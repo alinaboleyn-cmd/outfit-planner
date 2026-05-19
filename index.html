@@ -833,6 +833,7 @@ const state = {
   outfitsTags: [],
   builderSearch: '',
   builderFilter: '',
+  builderOutfitId: null,  // set when editing an existing outfit
 };
 
 // ═══════════════════════════════════════════════
@@ -1356,7 +1357,7 @@ function renderBuilder(root) {
             <input type="text" id="outfit-tag-input" placeholder="Add tag…" style="border:1px solid var(--border);border-radius:16px;padding:5px 12px;font-size:13px;outline:none;width:110px;">
           </div>
           <button class="btn btn-secondary" id="clear-builder-btn">Clear</button>
-          <button class="btn btn-primary" id="save-outfit-btn">Save Outfit</button>
+          <button class="btn btn-primary" id="save-outfit-btn">${state.builderOutfitId ? 'Update Outfit' : 'Save Outfit'}</button>
         </div>
         <div class="canvas-main" id="canvas-main">
           ${buildFreeCanvas()}
@@ -1428,6 +1429,7 @@ function setupBuilderEvents() {
       state.builderItems = [];
       state.builderName = '';
       state.builderTags = [];
+      state.builderOutfitId = null;
       renderBuilder(document.getElementById('content'));
     }
   });
@@ -1597,20 +1599,29 @@ function saveOutfit() {
   const name = document.getElementById('outfit-name-input')?.value.trim() || '';
   if (!name) { toast('Please give your outfit a name', 'error'); return; }
 
-  state.outfits.unshift({
-    id: uid(),
-    name,
-    items: state.builderItems.map(i => i.id),
-    tags: [...state.builderTags],
-    createdAt: Date.now(),
-  });
+  if (state.builderOutfitId) {
+    const idx = state.outfits.findIndex(o => o.id === state.builderOutfitId);
+    if (idx !== -1) {
+      state.outfits[idx] = { ...state.outfits[idx], name, items: [...state.builderItems], tags: [...state.builderTags] };
+    }
+    toast('Outfit updated!', 'success');
+  } else {
+    state.outfits.unshift({
+      id: uid(),
+      name,
+      items: [...state.builderItems],
+      tags: [...state.builderTags],
+      createdAt: Date.now(),
+    });
+    toast('Outfit saved!', 'success');
+  }
   saveData();
 
   state.builderItems = [];
   state.builderName = '';
   state.builderTags = [];
+  state.builderOutfitId = null;
 
-  toast('Outfit saved!', 'success');
   switchTab('outfits');
 }
 
@@ -1687,7 +1698,7 @@ function renderOutfits(root) {
 }
 
 function renderOutfitCard(outfit) {
-  const previewItems = outfit.items.slice(0, 6).map(id => getItemById(id)).filter(Boolean);
+  const previewItems = outfit.items.slice(0, 6).map(i => getItemById(typeof i === 'object' ? i.id : i)).filter(Boolean);
   const date = new Date(outfit.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return `
@@ -1728,7 +1739,7 @@ function openViewOutfit(id) {
 
   const grouped = {};
   CATEGORIES.forEach(c => {
-    const items = outfit.items.map(iid => getItemById(iid)).filter(i => i && i.category === c.id);
+    const items = outfit.items.map(i => getItemById(typeof i === 'object' ? i.id : i)).filter(i => i && i.category === c.id);
     if (items.length > 0) grouped[c.id] = items;
   });
 
@@ -1782,13 +1793,12 @@ function openViewOutfit(id) {
   document.getElementById('modal-close2').onclick = closeModal;
   document.getElementById('modal-overlay').onclick = e => { if (e.target.id === 'modal-overlay') closeModal(); };
   document.getElementById('edit-in-builder-btn').onclick = () => {
-    state.builderItems = outfit.items.map((id, idx) => ({
-      id,
-      x: 20 + (idx % 4) * 160,
-      y: 20 + Math.floor(idx / 4) * 220,
-    }));
+    state.builderItems = outfit.items.map((item, idx) =>
+      typeof item === 'object' ? { ...item } : { id: item, x: 20 + (idx % 4) * 160, y: 20 + Math.floor(idx / 4) * 220 }
+    );
     state.builderName = outfit.name;
     state.builderTags = [...outfit.tags];
+    state.builderOutfitId = outfit.id;
     closeModal();
     switchTab('builder');
   };
