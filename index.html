@@ -414,109 +414,97 @@ nav button.active { background: var(--accent-light); color: var(--accent-dark); 
 
 .canvas-main {
   flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  background: var(--bg);
-  display: flex;
-  justify-content: center;
-}
-
-/* ── OUTFIT VISUAL ── */
-.outfit-preview {
-  width: 100%;
-  max-width: 720px;
-}
-
-.outfit-empty {
-  text-align: center;
-  padding: 80px 24px;
-  color: var(--text2);
-}
-.outfit-empty .oe-icon { font-size: 56px; margin-bottom: 16px; }
-.outfit-empty p { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
-.outfit-empty span { font-size: 14px; }
-
-.outfit-slots {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.outfit-category-row {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  box-shadow: var(--shadow);
-}
-
-.outfit-category-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text2);
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
-  margin-bottom: 10px;
-}
-
-.outfit-items-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.outfit-item-card {
+  overflow: auto;
   position: relative;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  box-shadow: var(--shadow);
-  flex-shrink: 0;
+  background: var(--bg);
 }
 
-.outfit-item-card img {
-  width: 120px;
-  height: 150px;
+/* ── FREE CANVAS ── */
+.free-canvas {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+  background: #FDFCFA;
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.canvas-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--text2);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.canvas-empty .ce-icon { font-size: 52px; margin-bottom: 14px; }
+.canvas-empty p { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+.canvas-empty span { font-size: 13px; }
+
+.canvas-item {
+  position: absolute;
+  width: 140px;
+  cursor: grab;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  background: var(--surface);
+  user-select: none;
+  transition: box-shadow 0.15s;
+}
+.canvas-item:hover { box-shadow: var(--shadow-lg); }
+.canvas-item.is-dragging { cursor: grabbing; box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 50; }
+
+.canvas-item img {
+  width: 100%;
+  aspect-ratio: 3/4;
   object-fit: cover;
   display: block;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  pointer-events: none;
   background: var(--surface2);
 }
-.outfit-item-card .oic-placeholder {
-  width: 120px;
-  height: 150px;
+.canvas-item .ci-placeholder {
+  width: 100%;
+  aspect-ratio: 3/4;
   background: var(--surface2);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
+  font-size: 34px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  pointer-events: none;
 }
-.outfit-item-card .oic-name {
+.canvas-item .ci-label {
+  padding: 5px 8px 6px;
   font-size: 11px;
   font-weight: 500;
-  padding: 5px 8px;
-  background: var(--surface);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 120px;
+  pointer-events: none;
 }
-.outfit-item-card .oic-remove {
+.canvas-item .ci-remove {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: -8px;
+  right: -8px;
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: rgba(220,53,69,0.85);
+  background: var(--text);
   color: white;
-  border: none;
+  border: 2px solid var(--surface);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   transition: opacity 0.15s;
+  z-index: 1;
 }
-.outfit-item-card:hover .oic-remove { opacity: 1; }
+.canvas-item:hover .ci-remove { opacity: 1; }
 
 /* ── OUTFITS TAB ── */
 .outfits-layout { padding: 20px 24px; }
@@ -1280,7 +1268,7 @@ function saveItem() {
 function deleteItem(id) {
   if (!confirm('Remove this item from your wardrobe?')) return;
   state.wardrobe = state.wardrobe.filter(i => i.id !== id);
-  state.builderItems = state.builderItems.filter(i => i !== id);
+  state.builderItems = state.builderItems.filter(i => i.id !== id);
   saveData();
   render();
   toast('Item removed');
@@ -1294,10 +1282,16 @@ function closeModal() {
 // BUILDER TAB
 // ═══════════════════════════════════════════════
 function toggleBuilderItem(id) {
-  if (state.builderItems.includes(id)) {
-    state.builderItems = state.builderItems.filter(i => i !== id);
+  const existing = state.builderItems.findIndex(i => i.id === id);
+  if (existing !== -1) {
+    state.builderItems.splice(existing, 1);
   } else {
-    state.builderItems = [...state.builderItems, id];
+    const count = state.builderItems.length;
+    state.builderItems.push({
+      id,
+      x: 20 + (count % 4) * 160,
+      y: 20 + Math.floor(count / 4) * 220,
+    });
   }
 }
 
@@ -1313,15 +1307,6 @@ function renderBuilder(root) {
   if (state.builderFilter) {
     sidebarItems = sidebarItems.filter(i => i.category === state.builderFilter);
   }
-
-  // Group builder items by category
-  const grouped = {};
-  CATEGORIES.forEach(c => {
-    const items = state.builderItems
-      .map(id => getItemById(id))
-      .filter(i => i && i.category === c.id);
-    if (items.length > 0) grouped[c.id] = items;
-  });
 
   root.innerHTML = `
     <div class="builder-layout">
@@ -1344,7 +1329,7 @@ function renderBuilder(root) {
             </div>
           ` : sidebarItems.map(item => {
             const cat = getCategoryInfo(item.category);
-            const inOutfit = state.builderItems.includes(item.id);
+            const inOutfit = state.builderItems.some(i => i.id === item.id);
             return `
               <div class="sidebar-item ${inOutfit ? 'in-outfit' : ''}" data-toggle-item="${item.id}" title="${escHtml(item.name)}">
                 ${item.imageUrl
@@ -1373,46 +1358,15 @@ function renderBuilder(root) {
           <button class="btn btn-secondary" id="clear-builder-btn">Clear</button>
           <button class="btn btn-primary" id="save-outfit-btn">Save Outfit</button>
         </div>
-        <div class="canvas-main">
-          <div class="outfit-preview">
-            ${state.builderItems.length === 0 ? `
-              <div class="outfit-empty">
-                <div class="oe-icon">👗</div>
-                <p>Your outfit canvas is empty</p>
-                <span>Click items in the wardrobe panel to add them here</span>
-              </div>
-            ` : `
-              <div class="outfit-slots">
-                ${CATEGORIES.map(cat => {
-                  const items = (grouped[cat.id] || []);
-                  if (items.length === 0) return '';
-                  return `
-                    <div class="outfit-category-row">
-                      <div class="outfit-category-label">${cat.emoji} ${cat.label}</div>
-                      <div class="outfit-items-row">
-                        ${items.map(item => `
-                          <div class="outfit-item-card">
-                            ${item.imageUrl
-                              ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-                              : ''}
-                            <div class="oic-placeholder" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
-                            <div class="oic-name">${escHtml(item.name)}</div>
-                            <button class="oic-remove" data-remove-from-builder="${item.id}" title="Remove">✕</button>
-                          </div>
-                        `).join('')}
-                      </div>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            `}
-          </div>
+        <div class="canvas-main" id="canvas-main">
+          ${buildFreeCanvas()}
         </div>
       </div>
     </div>
   `;
 
   setupBuilderEvents();
+  setupCanvasDrag();
 }
 
 function setupBuilderEvents() {
@@ -1435,16 +1389,6 @@ function setupBuilderEvents() {
     const item = e.target.closest('[data-toggle-item]');
     if (item) {
       toggleBuilderItem(item.dataset.toggleItem);
-      renderBuilderCanvas();
-      renderBuilderSidebar();
-    }
-  });
-
-  // Remove from builder
-  document.querySelector('.canvas-main')?.addEventListener('click', e => {
-    const btn = e.target.closest('[data-remove-from-builder]');
-    if (btn) {
-      toggleBuilderItem(btn.dataset.removeFromBuilder);
       renderBuilderCanvas();
       renderBuilderSidebar();
     }
@@ -1515,7 +1459,7 @@ function renderBuilderSidebar() {
     </div>
   ` : sidebarItems.map(item => {
     const cat = getCategoryInfo(item.category);
-    const inOutfit = state.builderItems.includes(item.id);
+    const inOutfit = state.builderItems.some(i => i.id === item.id);
     return `
       <div class="sidebar-item ${inOutfit ? 'in-outfit' : ''}" data-toggle-item="${item.id}" title="${escHtml(item.name)}">
         ${item.imageUrl
@@ -1528,58 +1472,88 @@ function renderBuilderSidebar() {
   }).join('');
 }
 
-function renderBuilderCanvas() {
-  const grouped = {};
-  CATEGORIES.forEach(c => {
-    const items = state.builderItems
-      .map(id => getItemById(id))
-      .filter(i => i && i.category === c.id);
-    if (items.length > 0) grouped[c.id] = items;
-  });
-
-  const preview = document.querySelector('.outfit-preview');
-  if (!preview) return;
-
-  preview.innerHTML = state.builderItems.length === 0 ? `
-    <div class="outfit-empty">
-      <div class="oe-icon">👗</div>
-      <p>Your outfit canvas is empty</p>
-      <span>Click items in the wardrobe panel to add them here</span>
-    </div>
-  ` : `
-    <div class="outfit-slots">
-      ${CATEGORIES.map(cat => {
-        const items = grouped[cat.id] || [];
-        if (items.length === 0) return '';
+function buildFreeCanvas() {
+  return `
+    <div class="free-canvas" id="free-canvas" style="min-height:${Math.max(600, state.builderItems.length * 60)}px">
+      ${state.builderItems.length === 0 ? `
+        <div class="canvas-empty">
+          <div class="ce-icon">👗</div>
+          <p>Your outfit canvas is empty</p>
+          <span>Click items in the wardrobe to place them here</span>
+        </div>
+      ` : state.builderItems.map(({id, x, y}) => {
+        const item = getItemById(id);
+        if (!item) return '';
+        const cat = getCategoryInfo(item.category);
         return `
-          <div class="outfit-category-row">
-            <div class="outfit-category-label">${cat.emoji} ${cat.label}</div>
-            <div class="outfit-items-row">
-              ${items.map(item => `
-                <div class="outfit-item-card">
-                  ${item.imageUrl
-                    ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-                    : ''}
-                  <div class="oic-placeholder" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
-                  <div class="oic-name">${escHtml(item.name)}</div>
-                  <button class="oic-remove" data-remove-from-builder="${item.id}" title="Remove">✕</button>
-                </div>
-              `).join('')}
-            </div>
+          <div class="canvas-item" data-canvas-id="${id}" style="left:${x}px;top:${y}px;">
+            ${item.imageUrl
+              ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+              : ''}
+            <div class="ci-placeholder" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
+            <div class="ci-label">${escHtml(item.name)}</div>
+            <button class="ci-remove" data-remove-from-builder="${id}" title="Remove">✕</button>
           </div>
         `;
       }).join('')}
     </div>
   `;
+}
 
-  // Re-attach remove listeners
-  preview.querySelectorAll('[data-remove-from-builder]').forEach(btn => {
-    btn.addEventListener('click', () => {
+function renderBuilderCanvas() {
+  const canvasMain = document.getElementById('canvas-main');
+  if (!canvasMain) return;
+  canvasMain.innerHTML = buildFreeCanvas();
+  setupCanvasDrag();
+}
+
+let canvasDrag = null;
+
+document.addEventListener('mousemove', onCanvasMouseMove);
+document.addEventListener('mouseup', onCanvasMouseUp);
+
+function setupCanvasDrag() {
+  const canvas = document.getElementById('free-canvas');
+  if (!canvas) return;
+
+  canvas.addEventListener('mousedown', e => {
+    if (e.target.closest('.ci-remove')) return;
+    const el = e.target.closest('.canvas-item');
+    if (!el) return;
+    e.preventDefault();
+    const id = el.dataset.canvasId;
+    const bItem = state.builderItems.find(i => i.id === id);
+    if (!bItem) return;
+    const rect = canvas.getBoundingClientRect();
+    canvasDrag = { id, el, canvas, offsetX: e.clientX - rect.left - bItem.x, offsetY: e.clientY - rect.top - bItem.y };
+    el.classList.add('is-dragging');
+  });
+
+  canvas.addEventListener('click', e => {
+    const btn = e.target.closest('.ci-remove');
+    if (btn) {
       toggleBuilderItem(btn.dataset.removeFromBuilder);
       renderBuilderCanvas();
       renderBuilderSidebar();
-    });
+    }
   });
+}
+
+function onCanvasMouseMove(e) {
+  if (!canvasDrag) return;
+  const rect = canvasDrag.canvas.getBoundingClientRect();
+  const bItem = state.builderItems.find(i => i.id === canvasDrag.id);
+  if (!bItem) return;
+  bItem.x = Math.max(0, e.clientX - rect.left - canvasDrag.offsetX);
+  bItem.y = Math.max(0, e.clientY - rect.top - canvasDrag.offsetY);
+  canvasDrag.el.style.left = bItem.x + 'px';
+  canvasDrag.el.style.top = bItem.y + 'px';
+}
+
+function onCanvasMouseUp() {
+  if (!canvasDrag) return;
+  canvasDrag.el.classList.remove('is-dragging');
+  canvasDrag = null;
 }
 
 function renderBuilderToolbar() {
@@ -1626,7 +1600,7 @@ function saveOutfit() {
   state.outfits.unshift({
     id: uid(),
     name,
-    items: [...state.builderItems],
+    items: state.builderItems.map(i => i.id),
     tags: [...state.builderTags],
     createdAt: Date.now(),
   });
@@ -1808,7 +1782,11 @@ function openViewOutfit(id) {
   document.getElementById('modal-close2').onclick = closeModal;
   document.getElementById('modal-overlay').onclick = e => { if (e.target.id === 'modal-overlay') closeModal(); };
   document.getElementById('edit-in-builder-btn').onclick = () => {
-    state.builderItems = [...outfit.items];
+    state.builderItems = outfit.items.map((id, idx) => ({
+      id,
+      x: 20 + (idx % 4) * 160,
+      y: 20 + Math.floor(idx / 4) * 220,
+    }));
     state.builderName = outfit.name;
     state.builderTags = [...outfit.tags];
     closeModal();
