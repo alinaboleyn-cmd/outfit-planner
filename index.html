@@ -522,6 +522,11 @@ nav button.active { background: var(--accent-light); color: var(--accent-dark); 
 .ci-btn:hover { background: var(--accent); }
 .ci-btn-danger { background: #b03030; }
 .ci-btn-danger:hover { background: #d94040; }
+.ci-btn-on { background: var(--accent); }
+.ci-btn-on:hover { background: var(--accent-dark); }
+
+.canvas-item.no-bg img { mix-blend-mode: multiply; }
+.canvas-item.no-bg .ci-placeholder { mix-blend-mode: multiply; background: white; }
 
 /* ── OUTFITS TAB ── */
 .outfits-layout { padding: 20px 24px; }
@@ -1319,6 +1324,7 @@ function toggleBuilderItem(id) {
       id,
       x: 20 + (count % 4) * 160,
       y: 20 + Math.floor(count / 4) * 220,
+      noBg: false,
     });
   }
 }
@@ -1510,12 +1516,13 @@ function buildFreeCanvas() {
           <p>Your outfit canvas is empty</p>
           <span>Click items in the wardrobe to place them here</span>
         </div>
-      ` : state.builderItems.map(({id, x, y}) => {
+      ` : state.builderItems.map((bItem) => {
+        const {id, x, y, noBg} = bItem;
         const item = getItemById(id);
         if (!item) return '';
         const cat = getCategoryInfo(item.category);
         return `
-          <div class="canvas-item" data-canvas-id="${id}" style="left:${x}px;top:${y}px;">
+          <div class="canvas-item ${noBg ? 'no-bg' : ''}" data-canvas-id="${id}" style="left:${x}px;top:${y}px;">
             ${item.imageUrl
               ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
               : ''}
@@ -1524,6 +1531,7 @@ function buildFreeCanvas() {
             <div class="ci-controls">
               <button class="ci-btn" data-bring-front="${id}" title="Bring to front">↑</button>
               <button class="ci-btn" data-send-back="${id}" title="Send to back">↓</button>
+              <button class="ci-btn ${noBg ? 'ci-btn-on' : ''}" data-toggle-bg="${id}" title="${noBg ? 'Show background' : 'Remove background'}">◻</button>
               <button class="ci-btn ci-btn-danger" data-remove-from-builder="${id}" title="Remove">✕</button>
             </div>
           </div>
@@ -1569,6 +1577,8 @@ function setupCanvasDrag() {
     if (bf) { bringToFront(bf.dataset.bringFront); return; }
     const sb = e.target.closest('[data-send-back]');
     if (sb) { sendToBack(sb.dataset.sendBack); return; }
+    const tb = e.target.closest('[data-toggle-bg]');
+    if (tb) { toggleNoBg(tb.dataset.toggleBg); return; }
   });
 }
 
@@ -1587,6 +1597,11 @@ function onCanvasMouseUp() {
   if (!canvasDrag) return;
   canvasDrag.el.classList.remove('is-dragging');
   canvasDrag = null;
+}
+
+function toggleNoBg(id) {
+  const item = state.builderItems.find(i => i.id === id);
+  if (item) { item.noBg = !item.noBg; renderBuilderCanvas(); }
 }
 
 function bringToFront(id) {
@@ -1775,7 +1790,7 @@ function normalizeItems(items) {
   return items.map((item, idx) =>
     typeof item === 'object'
       ? item
-      : { id: item, x: 20 + (idx % 4) * 160, y: 20 + Math.floor(idx / 4) * 220 }
+      : { id: item, x: 20 + (idx % 4) * 160, y: 20 + Math.floor(idx / 4) * 220, noBg: false }
   );
 }
 
@@ -1792,16 +1807,17 @@ function renderMiniCanvas(outfitItems, availW, availH) {
   return `
     <div style="width:${availW}px;height:${scaledH}px;overflow:hidden;position:relative;background:#FDFCFA;border-radius:var(--radius-sm);">
       <div style="position:relative;width:${canvasW}px;height:${canvasH}px;transform:scale(${scale});transform-origin:top left;background:#FDFCFA;background-image:radial-gradient(circle,var(--border) 1px,transparent 1px);background-size:28px 28px;">
-        ${normalized.map(({id, x, y}) => {
+        ${normalized.map(({id, x, y, noBg}) => {
           const item = getItemById(id);
           if (!item) return '';
           const cat = getCategoryInfo(item.category);
+          const blendStyle = noBg ? 'mix-blend-mode:multiply;' : '';
           return `
-            <div style="position:absolute;left:${x}px;top:${y}px;width:${ITEM_W}px;background:white;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+            <div style="position:absolute;left:${x}px;top:${y}px;width:${ITEM_W}px;background:transparent;border-radius:8px;overflow:hidden;">
               ${item.imageUrl
-                ? `<img src="${escHtml(item.imageUrl)}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:var(--surface2);" loading="lazy">`
-                : `<div style="width:100%;aspect-ratio:3/4;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:34px;">${cat.emoji}</div>`}
-              <div style="padding:5px 8px;font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(item.name)}</div>
+                ? `<img src="${escHtml(item.imageUrl)}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:var(--surface2);${blendStyle}" loading="lazy">`
+                : `<div style="width:100%;aspect-ratio:3/4;background:${noBg ? 'white' : 'var(--surface2)'};display:flex;align-items:center;justify-content:center;font-size:34px;${blendStyle}">${cat.emoji}</div>`}
+              <div style="padding:4px 8px 5px;font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(255,255,255,0.88);">${escHtml(item.name)}</div>
             </div>
           `;
         }).join('')}
