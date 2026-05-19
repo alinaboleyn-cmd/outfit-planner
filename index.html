@@ -1171,6 +1171,13 @@ function showItemModal() {
               `).join('')}
               <input id="tag-input" type="text" placeholder="Add tag…">
             </div>
+            ${getAllTags().filter(t => !pendingItem.tags.includes(t)).length > 0 ? `
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
+                ${getAllTags().filter(t => !pendingItem.tags.includes(t)).map(t => `
+                  <span class="tag-chip" data-suggest-tag="${escHtml(t)}" style="font-size:11px;padding:3px 10px;cursor:pointer;">+ ${escHtml(t)}</span>
+                `).join('')}
+              </div>
+            ` : ''}
           </div>
         </div>
         <div class="modal-footer">
@@ -1227,6 +1234,9 @@ function showItemModal() {
   });
 
   document.getElementById('tags-editor').onclick = () => document.getElementById('tag-input').focus();
+  document.querySelectorAll('[data-suggest-tag]').forEach(chip => {
+    chip.addEventListener('click', () => addTag(chip.dataset.suggestTag));
+  });
   document.getElementById('item-name').addEventListener('input', e => { pendingItem.name = e.target.value; });
   document.getElementById('item-category').addEventListener('change', e => { pendingItem.category = e.target.value; });
 }
@@ -1704,17 +1714,8 @@ function renderOutfitCard(outfit) {
   return `
     <div class="outfit-card" data-outfit-id="${outfit.id}">
       <button class="oc-delete" data-delete-outfit="${outfit.id}" title="Delete outfit">✕</button>
-      <div class="oc-preview">
-        ${previewItems.length === 0
-          ? `<div class="oc-preview-item" style="grid-column:span 3"><div class="oc-ph">👗</div></div>`
-          : previewItems.slice(0, 3).map(item => `
-            <div class="oc-preview-item">
-              ${item.imageUrl
-                ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-                : ''}
-              <div class="oc-ph" ${item.imageUrl ? 'style="display:none"' : ''}>${getCategoryInfo(item.category).emoji}</div>
-            </div>
-          `).join('')}
+      <div style="height:180px;overflow:hidden;">
+        ${renderMiniCanvas(outfit.items, 280, 180)}
       </div>
       <div class="oc-body">
         <div class="oc-name">${escHtml(outfit.name)}</div>
@@ -1733,20 +1734,53 @@ function deleteOutfit(id, root) {
   toast('Outfit deleted');
 }
 
+function normalizeItems(items) {
+  return items.map((item, idx) =>
+    typeof item === 'object'
+      ? item
+      : { id: item, x: 20 + (idx % 4) * 160, y: 20 + Math.floor(idx / 4) * 220 }
+  );
+}
+
+function renderMiniCanvas(outfitItems, availW, availH) {
+  const normalized = normalizeItems(outfitItems);
+  if (normalized.length === 0) return `<div style="width:${availW}px;height:${availH}px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:32px;">👗</div>`;
+
+  const ITEM_W = 140, ITEM_H = 210;
+  const canvasW = Math.max(...normalized.map(i => i.x + ITEM_W)) + 20;
+  const canvasH = Math.max(...normalized.map(i => i.y + ITEM_H)) + 20;
+  const scale = Math.min(availW / canvasW, availH / canvasH);
+  const scaledH = Math.round(canvasH * scale);
+
+  return `
+    <div style="width:${availW}px;height:${scaledH}px;overflow:hidden;position:relative;background:#FDFCFA;border-radius:var(--radius-sm);">
+      <div style="position:relative;width:${canvasW}px;height:${canvasH}px;transform:scale(${scale});transform-origin:top left;background:#FDFCFA;background-image:radial-gradient(circle,var(--border) 1px,transparent 1px);background-size:28px 28px;">
+        ${normalized.map(({id, x, y}) => {
+          const item = getItemById(id);
+          if (!item) return '';
+          const cat = getCategoryInfo(item.category);
+          return `
+            <div style="position:absolute;left:${x}px;top:${y}px;width:${ITEM_W}px;background:white;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">
+              ${item.imageUrl
+                ? `<img src="${escHtml(item.imageUrl)}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:var(--surface2);" loading="lazy">`
+                : `<div style="width:100%;aspect-ratio:3/4;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:34px;">${cat.emoji}</div>`}
+              <div style="padding:5px 8px;font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(item.name)}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
 function openViewOutfit(id) {
   const outfit = state.outfits.find(o => o.id === id);
   if (!outfit) return;
 
-  const grouped = {};
-  CATEGORIES.forEach(c => {
-    const items = outfit.items.map(i => getItemById(typeof i === 'object' ? i.id : i)).filter(i => i && i.category === c.id);
-    if (items.length > 0) grouped[c.id] = items;
-  });
-
   const root = document.getElementById('modal-root');
   root.innerHTML = `
     <div class="modal-overlay" id="modal-overlay">
-      <div class="modal" style="max-width:580px">
+      <div class="modal" style="max-width:620px">
         <div class="modal-header">
           <div>
             <h2>${escHtml(outfit.name)}</h2>
@@ -1757,29 +1791,8 @@ function openViewOutfit(id) {
           </div>
           <button class="modal-close" id="modal-close">✕</button>
         </div>
-        <div class="modal-body">
-          <div class="view-outfit-grid">
-            ${CATEGORIES.map(cat => {
-              const items = grouped[cat.id] || [];
-              if (items.length === 0) return '';
-              return `
-                <div>
-                  <div class="view-outfit-category">${cat.emoji} ${cat.label}</div>
-                  <div class="view-outfit-items">
-                    ${items.map(item => `
-                      <div class="view-outfit-item">
-                        ${item.imageUrl
-                          ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-                          : ''}
-                        <div class="voi-ph" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
-                        <div class="voi-name">${escHtml(item.name)}</div>
-                      </div>
-                    `).join('')}
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
+        <div class="modal-body" style="padding:20px 24px;">
+          ${renderMiniCanvas(outfit.items, 572, 520)}
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" id="modal-close2">Close</button>
