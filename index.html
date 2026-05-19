@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outfit Planner</title>
+<style>
+:root {
+  --bg: #F7F5F2;
+  --surface: #FFFFFF;
+  --surface2: #F0EDE8;
+  --border: #E4DFD8;
+  --text: #2A2520;
+  --text2: #7A736A;
+  --accent: #B87A5A;
+  --accent-light: #F0E0D4;
+  --accent-dark: #9A6248;
+  --shadow: 0 2px 12px rgba(0,0,0,0.07);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+nav { display: flex; gap: 4px; }
+
+nav button {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+nav button:hover { background: var(--surface2); color: var(--text); }
+nav button.active { background: var(--accent-light); color: var(--accent-dark); font-weight: 600; }
+
+/* ── CONTENT ── */
+#content { min-height: calc(100vh - 60px); }
+
+/* ── WARDROBE TAB ── */
+.wardrobe-layout { display: flex; flex-direction: column; height: calc(100vh - 60px); }
+
+.wardrobe-toolbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search-input:focus { border-color: var(--accent); }
+
+.tag-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.tag-chip {
+  padding: 5px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text2);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.tag-chip:hover { border-color: var(--accent); color: var(--accent); }
+.tag-chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+.btn {
+  padding: 9px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--border); }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+
+/* ── DROP ZONE ── */
+.dropzone-area {
+  margin: 20px 24px 0;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  text-align: center;
+  color: var(--text2);
+  transition: all 0.2s;
+  background: var(--surface);
+  cursor: pointer;
+}
+.dropzone-area:hover, .dropzone-area.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent-dark);
+}
+.dropzone-area .dz-icon { font-size: 28px; margin-bottom: 6px; }
+.dropzone-area p { font-size: 14px; font-weight: 500; }
+.dropzone-area span { font-size: 12px; color: var(--text2); }
+
+/* ── CLOTHING GRID ── */
+.clothing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 16px;
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.clothing-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: grab;
+  position: relative;
+}
+.clothing-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.clothing-card:active { cursor: grabbing; }
+
+.clothing-card .card-img {
+  width: 100%;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  display: block;
+  background: var(--surface2);
+}
+
+.clothing-card .card-img-placeholder {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+}
+
+.clothing-card .card-body { padding: 10px 12px; }
+.clothing-card .card-name {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.clothing-card .card-category {
+  font-size: 11px;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.clothing-card .card-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+.clothing-card .card-tag {
+  font-size: 10px;
+  padding: 2px 7px;
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.clothing-card .card-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.clothing-card:hover .card-actions { opacity: 1; }
+
+.card-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+.card-btn-delete { background: rgba(220,53,69,0.9); color: white; }
+.card-btn-delete:hover { background: #dc3545; }
+.card-btn-add { background: rgba(184,122,90,0.9); color: white; }
+.card-btn-add:hover { background: var(--accent); }
+.card-btn-added { background: rgba(40,167,69,0.9); color: white; }
+
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 24px;
+  color: var(--text2);
+}
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+.empty-state span { font-size: 14px; }
+
+/* ── BUILDER TAB ── */
+.builder-layout {
+  display: flex;
+  height: calc(100vh - 60px);
+}
+
+.builder-sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sidebar-search {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-search input {
+  width: 100%;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+.sidebar-search input:focus { border-color: var(--accent); }
+
+.sidebar-filter {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sidebar-items {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  align-content: start;
+}
+
+.sidebar-item {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+}
+.sidebar-item:hover { border-color: var(--accent); }
+.sidebar-item.in-outfit { border-color: var(--accent); }
+.sidebar-item.in-outfit::after {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--accent);
+  color: white;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-item img {
+  width: 100%;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  display: block;
+  background: var(--surface2);
+}
+.sidebar-item .si-placeholder {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+.sidebar-item .si-name {
+  font-size: 10px;
+  padding: 3px 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  background: var(--surface);
+}
+
+/* ── BUILDER CANVAS ── */
+.builder-canvas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.canvas-toolbar {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+}
+
+.canvas-toolbar input[type="text"] {
+  flex: 1;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  max-width: 300px;
+}
+.canvas-toolbar input:focus { border-color: var(--accent); }
+
+.outfit-tags-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.canvas-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  background: var(--bg);
+  display: flex;
+  justify-content: center;
+}
+
+/* ── OUTFIT VISUAL ── */
+.outfit-preview {
+  width: 100%;
+  max-width: 720px;
+}
+
+.outfit-empty {
+  text-align: center;
+  padding: 80px 24px;
+  color: var(--text2);
+}
+.outfit-empty .oe-icon { font-size: 56px; margin-bottom: 16px; }
+.outfit-empty p { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+.outfit-empty span { font-size: 14px; }
+
+.outfit-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.outfit-category-row {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+
+.outfit-category-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin-bottom: 10px;
+}
+
+.outfit-items-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.outfit-item-card {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  flex-shrink: 0;
+}
+
+.outfit-item-card img {
+  width: 120px;
+  height: 150px;
+  object-fit: cover;
+  display: block;
+  background: var(--surface2);
+}
+.outfit-item-card .oic-placeholder {
+  width: 120px;
+  height: 150px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+.outfit-item-card .oic-name {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 8px;
+  background: var(--surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+.outfit-item-card .oic-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(220,53,69,0.85);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.outfit-item-card:hover .oic-remove { opacity: 1; }
+
+/* ── OUTFITS TAB ── */
+.outfits-layout { padding: 20px 24px; }
+
+.outfits-toolbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 60px;
+  z-index: 50;
+}
+
+.outfits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  padding: 20px 24px;
+}
+
+.outfit-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+.outfit-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+
+.outfit-card .oc-preview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  background: var(--surface2);
+  height: 180px;
+}
+.outfit-card .oc-preview-item {
+  overflow: hidden;
+  background: var(--surface2);
+}
+.outfit-card .oc-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.outfit-card .oc-preview-item .oc-ph {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+.outfit-card .oc-preview-item:first-child:only-child { grid-column: span 3; }
+.outfit-card .oc-preview-item:nth-child(1):nth-last-child(2),
+.outfit-card .oc-preview-item:nth-child(2):nth-last-child(1) { grid-column: span 1; }
+
+.outfit-card .oc-body { padding: 12px 14px; }
+.outfit-card .oc-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.outfit-card .oc-meta { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+.outfit-card .oc-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.outfit-card .oc-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.outfit-card .oc-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(220,53,69,0.85);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.outfit-card:hover .oc-delete { opacity: 1; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-header h2 { font-size: 18px; font-weight: 700; }
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface2);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text2);
+}
+.modal-close:hover { background: var(--border); }
+
+.modal-body { padding: 20px 24px; }
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+
+.preview-img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  margin-bottom: 16px;
+  display: block;
+}
+.preview-ph {
+  width: 100%;
+  height: 160px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+
+/* Tags editor */
+.tags-editor {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  min-height: 42px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  cursor: text;
+  background: var(--bg);
+  transition: border-color 0.15s;
+}
+.tags-editor:focus-within { border-color: var(--accent); }
+.tags-editor .te-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.tags-editor .te-tag button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent-dark);
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+.tags-editor input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+  min-width: 80px;
+  padding: 2px 4px;
+}
+
+/* ── VIEW OUTFIT MODAL ── */
+.view-outfit-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.view-outfit-category { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.view-outfit-items { display: flex; gap: 10px; flex-wrap: wrap; }
+.view-outfit-item { border-radius: var(--radius-sm); overflow: hidden; box-shadow: var(--shadow); }
+.view-outfit-item img { width: 110px; height: 140px; object-fit: cover; display: block; background: var(--surface2); }
+.view-outfit-item .voi-ph { width: 110px; height: 140px; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 28px; }
+.view-outfit-item .voi-name { font-size: 11px; font-weight: 500; padding: 4px 7px; max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--text);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 999;
+  transform: translateY(60px);
+  opacity: 0;
+  transition: all 0.25s;
+  max-width: 320px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { background: #2d7a4f; }
+.toast.error { background: #c0392b; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">✦ Outfit Planner</div>
+  <nav>
+    <button id="nav-wardrobe" class="active" onclick="switchTab('wardrobe')">Wardrobe</button>
+    <button id="nav-builder" onclick="switchTab('builder')">Outfit Builder</button>
+    <button id="nav-outfits" onclick="switchTab('outfits')">My Outfits</button>
+  </nav>
+</header>
+
+<div id="content"></div>
+<div id="modal-root"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+const CATEGORIES = [
+  { id: 'hat', label: 'Headwear', emoji: '🎩' },
+  { id: 'outerwear', label: 'Outerwear', emoji: '🧥' },
+  { id: 'top', label: 'Tops', emoji: '👕' },
+  { id: 'dress', label: 'Dresses & Jumpsuits', emoji: '👗' },
+  { id: 'bottom', label: 'Bottoms', emoji: '👖' },
+  { id: 'shoes', label: 'Shoes', emoji: '👟' },
+  { id: 'bag', label: 'Bags', emoji: '👜' },
+  { id: 'accessories', label: 'Accessories', emoji: '💍' },
+  { id: 'other', label: 'Other', emoji: '🧣' },
+];
+
+const state = {
+  wardrobe: [],
+  outfits: [],
+  currentTab: 'wardrobe',
+  builderItems: [],    // item IDs
+  builderName: '',
+  builderTags: [],
+  wardrobeSearch: '',
+  wardrobeTags: [],    // active filter tags
+  outfitsSearch: '',
+  outfitsTags: [],
+  builderSearch: '',
+  builderFilter: '',
+};
+
+// ═══════════════════════════════════════════════
+// PERSISTENCE
+// ═══════════════════════════════════════════════
+function saveData() {
+  localStorage.setItem('op_wardrobe', JSON.stringify(state.wardrobe));
+  localStorage.setItem('op_outfits', JSON.stringify(state.outfits));
+}
+
+function loadData() {
+  try {
+    state.wardrobe = JSON.parse(localStorage.getItem('op_wardrobe') || '[]');
+    state.outfits = JSON.parse(localStorage.getItem('op_outfits') || '[]');
+  } catch(e) { state.wardrobe = []; state.outfits = []; }
+}
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function getCategoryInfo(id) {
+  return CATEGORIES.find(c => c.id === id) || { id: 'other', label: 'Other', emoji: '🧣' };
+}
+
+function getAllTags() {
+  const tags = new Set();
+  state.wardrobe.forEach(i => i.tags.forEach(t => tags.add(t)));
+  return [...tags].sort();
+}
+
+function getAllOutfitTags() {
+  const tags = new Set();
+  state.outfits.forEach(o => o.tags.forEach(t => tags.add(t)));
+  return [...tags].sort();
+}
+
+function getItemById(id) {
+  return state.wardrobe.find(i => i.id === id);
+}
+
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ═══════════════════════════════════════════════
+// IMAGE EXTRACTION FROM DROP
+// ═══════════════════════════════════════════════
+function extractImageFromDrop(e) {
+  return new Promise((resolve) => {
+    const dt = e.dataTransfer;
+
+    // File drop (from Finder or desktop)
+    if (dt.files && dt.files.length > 0) {
+      const file = [...dt.files].find(f => f.type.startsWith('image/'));
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = ev => resolve({ src: ev.target.result, name: file.name.replace(/\.[^.]+$/, '') });
+        reader.readAsDataURL(file);
+        return;
+      }
+    }
+
+    // Dragged image from webpage: try to get URL
+    let src = null;
+
+    // Try various MIME types
+    const types = dt.types || [];
+
+    if (types.includes('text/uri-list')) {
+      const uriList = dt.getData('text/uri-list');
+      const urls = uriList.split('\n').filter(u => u && !u.startsWith('#'));
+      if (urls.length > 0) src = urls[0].trim();
+    }
+
+    if (!src && types.includes('URL')) {
+      src = dt.getData('URL');
+    }
+
+    if (!src && types.includes('text/html')) {
+      const html = dt.getData('text/html');
+      const match = html.match(/src=["']([^"']+)["']/i);
+      if (match) src = match[1];
+    }
+
+    if (!src && types.includes('text/plain')) {
+      const txt = dt.getData('text/plain');
+      if (/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|avif|svg)/i.test(txt)) src = txt;
+    }
+
+    if (src) {
+      // Extract a name from URL
+      const urlName = src.split('/').pop().split('?')[0].replace(/\.[^.]+$/, '') || 'Item';
+      resolve({ src, name: decodeURIComponent(urlName).replace(/[-_]/g, ' ') });
+    } else {
+      resolve(null);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════
+function switchTab(tab) {
+  state.currentTab = tab;
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('nav-' + tab).classList.add('active');
+  render();
+}
+
+// ═══════════════════════════════════════════════
+// RENDER MAIN
+// ═══════════════════════════════════════════════
+function render() {
+  const content = document.getElementById('content');
+  if (state.currentTab === 'wardrobe') renderWardrobe(content);
+  else if (state.currentTab === 'builder') renderBuilder(content);
+  else renderOutfits(content);
+}
+
+// ═══════════════════════════════════════════════
+// WARDROBE TAB
+// ═══════════════════════════════════════════════
+function renderWardrobe(root) {
+  const allTags = getAllTags();
+
+  let filtered = state.wardrobe;
+  if (state.wardrobeSearch) {
+    const q = state.wardrobeSearch.toLowerCase();
+    filtered = filtered.filter(i =>
+      i.name.toLowerCase().includes(q) ||
+      i.tags.some(t => t.toLowerCase().includes(q)) ||
+      getCategoryInfo(i.category).label.toLowerCase().includes(q)
+    );
+  }
+  if (state.wardrobeTags.length > 0) {
+    filtered = filtered.filter(i =>
+      state.wardrobeTags.every(t => i.tags.includes(t))
+    );
+  }
+
+  root.innerHTML = `
+    <div class="wardrobe-layout">
+      <div class="wardrobe-toolbar">
+        <input class="search-input" type="text" placeholder="Search clothes…" id="wardrobe-search" value="${escHtml(state.wardrobeSearch)}">
+        <div class="tag-filters" id="tag-filters">
+          ${allTags.map(t => `
+            <span class="tag-chip ${state.wardrobeTags.includes(t) ? 'active' : ''}" data-tag="${escHtml(t)}">${escHtml(t)}</span>
+          `).join('')}
+        </div>
+        <button class="btn btn-primary" id="open-add-btn">+ Add Item</button>
+      </div>
+
+      <div class="dropzone-area" id="wardrobe-dropzone">
+        <div class="dz-icon">🖼️</div>
+        <p>Drag a photo here to add a clothing item</p>
+        <span>Drop an image file or drag a photo from any webpage</span>
+      </div>
+
+      <div class="clothing-grid" id="clothing-grid">
+        ${filtered.length === 0 ? `
+          <div class="empty-state">
+            <div class="empty-icon">👗</div>
+            <p>${state.wardrobe.length === 0 ? 'Your wardrobe is empty' : 'No items match your search'}</p>
+            <span>${state.wardrobe.length === 0 ? 'Add your first item using the button above or drop a photo' : 'Try different filters'}</span>
+          </div>
+        ` : filtered.map(item => renderClothingCard(item)).join('')}
+      </div>
+    </div>
+  `;
+
+  setupWardrobeEvents();
+}
+
+function renderClothingCard(item) {
+  const cat = getCategoryInfo(item.category);
+  return `
+    <div class="clothing-card" draggable="true" data-id="${item.id}">
+      <div class="card-actions">
+        <button class="card-btn card-btn-delete" data-delete="${item.id}" title="Delete">✕</button>
+        <button class="card-btn card-btn-add" data-add-to-builder="${item.id}" title="Add to outfit">+</button>
+      </div>
+      ${item.imageUrl
+        ? `<img class="card-img" src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : ''}
+      <div class="card-img-placeholder" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
+      <div class="card-body">
+        <div class="card-name">${escHtml(item.name)}</div>
+        <div class="card-category">${cat.emoji} ${cat.label}</div>
+        <div class="card-tags">${item.tags.map(t => `<span class="card-tag">${escHtml(t)}</span>`).join('')}</div>
+      </div>
+    </div>
+  `;
+}
+
+function setupWardrobeEvents() {
+  // Search
+  document.getElementById('wardrobe-search').addEventListener('input', e => {
+    state.wardrobeSearch = e.target.value;
+    render();
+  });
+
+  // Tag filters
+  document.querySelectorAll('#tag-filters .tag-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const tag = chip.dataset.tag;
+      if (state.wardrobeTags.includes(tag)) {
+        state.wardrobeTags = state.wardrobeTags.filter(t => t !== tag);
+      } else {
+        state.wardrobeTags = [...state.wardrobeTags, tag];
+      }
+      render();
+    });
+  });
+
+  // Add button
+  document.getElementById('open-add-btn').addEventListener('click', () => openAddModal(null));
+
+  // Dropzone
+  const dz = document.getElementById('wardrobe-dropzone');
+  dz.addEventListener('click', () => triggerFileInput());
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', async e => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    const result = await extractImageFromDrop(e);
+    if (result) openAddModal(result);
+    else toast('Could not extract image from drop. Try a different image.', 'error');
+  });
+
+  // Card actions
+  document.getElementById('clothing-grid').addEventListener('click', e => {
+    const del = e.target.closest('[data-delete]');
+    if (del) { deleteItem(del.dataset.delete); return; }
+    const add = e.target.closest('[data-add-to-builder]');
+    if (add) {
+      toggleBuilderItem(add.dataset.addToBuilder);
+      toast('Added to outfit builder! Switch to "Outfit Builder" tab.');
+      return;
+    }
+    const card = e.target.closest('.clothing-card');
+    if (card) openEditModal(card.dataset.id);
+  });
+
+  // Drag from wardrobe (for future use)
+  document.getElementById('clothing-grid').addEventListener('dragstart', e => {
+    const card = e.target.closest('.clothing-card');
+    if (card) e.dataTransfer.setData('text/plain', card.dataset.id);
+  });
+}
+
+function triggerFileInput() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.multiple = true;
+  input.onchange = async e => {
+    for (const file of e.target.files) {
+      const reader = new FileReader();
+      await new Promise(res => {
+        reader.onload = ev => {
+          openAddModal({ src: ev.target.result, name: file.name.replace(/\.[^.]+$/, '') });
+          res();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+  input.click();
+}
+
+// ═══════════════════════════════════════════════
+// ADD / EDIT MODAL
+// ═══════════════════════════════════════════════
+let pendingItem = { src: null, name: '', category: 'top', tags: [] };
+let editingId = null;
+
+function openAddModal(imageData) {
+  editingId = null;
+  pendingItem = {
+    src: imageData ? imageData.src : null,
+    name: imageData ? imageData.name : '',
+    category: 'top',
+    tags: [],
+  };
+  showItemModal();
+}
+
+function openEditModal(id) {
+  const item = getItemById(id);
+  if (!item) return;
+  editingId = id;
+  pendingItem = { src: item.imageUrl, name: item.name, category: item.category, tags: [...item.tags] };
+  showItemModal();
+}
+
+function showItemModal() {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>${editingId ? 'Edit Item' : 'Add Clothing Item'}</h2>
+          <button class="modal-close" id="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          ${pendingItem.src
+            ? `<img class="preview-img" id="preview-img" src="${escHtml(pendingItem.src)}" alt="preview">`
+            : `<div class="preview-ph" id="preview-ph">🖼️</div>`}
+          <button class="btn btn-secondary btn-sm" id="change-image-btn" style="margin-bottom:16px;">Change image</button>
+
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="item-name" value="${escHtml(pendingItem.name)}" placeholder="e.g. White linen shirt">
+          </div>
+
+          <div class="form-group">
+            <label>Category</label>
+            <select id="item-category">
+              ${CATEGORIES.map(c => `<option value="${c.id}" ${pendingItem.category === c.id ? 'selected' : ''}>${c.emoji} ${c.label}</option>`).join('')}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Tags <span style="font-weight:400;text-transform:none;letter-spacing:0">(press Enter or comma to add)</span></label>
+            <div class="tags-editor" id="tags-editor">
+              ${pendingItem.tags.map(t => `
+                <span class="te-tag">${escHtml(t)}<button type="button" data-remove-tag="${escHtml(t)}">✕</button></span>
+              `).join('')}
+              <input id="tag-input" type="text" placeholder="Add tag…">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="modal-save">${editingId ? 'Save Changes' : 'Add to Wardrobe'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('modal-close').onclick = closeModal;
+  document.getElementById('modal-cancel').onclick = closeModal;
+  document.getElementById('modal-overlay').onclick = e => { if (e.target.id === 'modal-overlay') closeModal(); };
+  document.getElementById('change-image-btn').onclick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = e => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        pendingItem.src = ev.target.result;
+        showItemModal();
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    };
+    input.click();
+  };
+  document.getElementById('modal-save').onclick = saveItem;
+
+  // Tags
+  const tagInput = document.getElementById('tag-input');
+  tagInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(tagInput.value.trim().replace(/,$/, ''));
+    } else if (e.key === 'Backspace' && tagInput.value === '' && pendingItem.tags.length > 0) {
+      pendingItem.tags.pop();
+      showItemModal();
+      setTimeout(() => document.getElementById('tag-input').focus(), 0);
+    }
+  });
+  tagInput.addEventListener('blur', () => {
+    if (tagInput.value.trim()) addTag(tagInput.value.trim());
+  });
+
+  document.querySelectorAll('[data-remove-tag]').forEach(btn => {
+    btn.onclick = e => {
+      e.stopPropagation();
+      const tag = btn.dataset.removeTag;
+      pendingItem.tags = pendingItem.tags.filter(t => t !== tag);
+      showItemModal();
+      setTimeout(() => document.getElementById('tag-input').focus(), 0);
+    };
+  });
+
+  document.getElementById('tags-editor').onclick = () => document.getElementById('tag-input').focus();
+  document.getElementById('item-name').addEventListener('input', e => { pendingItem.name = e.target.value; });
+  document.getElementById('item-category').addEventListener('change', e => { pendingItem.category = e.target.value; });
+}
+
+function addTag(tag) {
+  if (tag && !pendingItem.tags.includes(tag)) {
+    pendingItem.tags = [...pendingItem.tags, tag];
+    showItemModal();
+    setTimeout(() => document.getElementById('tag-input').focus(), 0);
+  }
+}
+
+function saveItem() {
+  const name = document.getElementById('item-name').value.trim();
+  const category = document.getElementById('item-category').value;
+  if (!name) { toast('Please enter a name for this item', 'error'); return; }
+
+  if (editingId) {
+    const idx = state.wardrobe.findIndex(i => i.id === editingId);
+    if (idx !== -1) {
+      state.wardrobe[idx] = { ...state.wardrobe[idx], name, category, tags: pendingItem.tags, imageUrl: pendingItem.src };
+    }
+    toast('Item updated!', 'success');
+  } else {
+    state.wardrobe.unshift({
+      id: uid(),
+      name,
+      category,
+      tags: pendingItem.tags,
+      imageUrl: pendingItem.src,
+      addedAt: Date.now(),
+    });
+    toast('Added to wardrobe!', 'success');
+  }
+  saveData();
+  closeModal();
+  render();
+}
+
+function deleteItem(id) {
+  if (!confirm('Remove this item from your wardrobe?')) return;
+  state.wardrobe = state.wardrobe.filter(i => i.id !== id);
+  state.builderItems = state.builderItems.filter(i => i !== id);
+  saveData();
+  render();
+  toast('Item removed');
+}
+
+function closeModal() {
+  document.getElementById('modal-root').innerHTML = '';
+}
+
+// ═══════════════════════════════════════════════
+// BUILDER TAB
+// ═══════════════════════════════════════════════
+function toggleBuilderItem(id) {
+  if (state.builderItems.includes(id)) {
+    state.builderItems = state.builderItems.filter(i => i !== id);
+  } else {
+    state.builderItems = [...state.builderItems, id];
+  }
+}
+
+function renderBuilder(root) {
+  let sidebarItems = state.wardrobe;
+  if (state.builderSearch) {
+    const q = state.builderSearch.toLowerCase();
+    sidebarItems = sidebarItems.filter(i =>
+      i.name.toLowerCase().includes(q) ||
+      i.tags.some(t => t.toLowerCase().includes(q))
+    );
+  }
+  if (state.builderFilter) {
+    sidebarItems = sidebarItems.filter(i => i.category === state.builderFilter);
+  }
+
+  // Group builder items by category
+  const grouped = {};
+  CATEGORIES.forEach(c => {
+    const items = state.builderItems
+      .map(id => getItemById(id))
+      .filter(i => i && i.category === c.id);
+    if (items.length > 0) grouped[c.id] = items;
+  });
+
+  root.innerHTML = `
+    <div class="builder-layout">
+      <!-- SIDEBAR -->
+      <div class="builder-sidebar">
+        <div class="sidebar-header">Wardrobe</div>
+        <div class="sidebar-search">
+          <input type="text" id="builder-search" placeholder="Search…" value="${escHtml(state.builderSearch)}">
+        </div>
+        <div class="sidebar-filter">
+          <span class="tag-chip ${!state.builderFilter ? 'active' : ''}" data-cat="">All</span>
+          ${CATEGORIES.map(c => `
+            <span class="tag-chip ${state.builderFilter === c.id ? 'active' : ''}" data-cat="${c.id}">${c.emoji}</span>
+          `).join('')}
+        </div>
+        <div class="sidebar-items" id="sidebar-items">
+          ${sidebarItems.length === 0 ? `
+            <div style="grid-column:span 2;text-align:center;padding:20px;color:var(--text2);font-size:13px;">
+              ${state.wardrobe.length === 0 ? 'Add items to your wardrobe first' : 'No items found'}
+            </div>
+          ` : sidebarItems.map(item => {
+            const cat = getCategoryInfo(item.category);
+            const inOutfit = state.builderItems.includes(item.id);
+            return `
+              <div class="sidebar-item ${inOutfit ? 'in-outfit' : ''}" data-toggle-item="${item.id}" title="${escHtml(item.name)}">
+                ${item.imageUrl
+                  ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                  : ''}
+                <div class="si-placeholder" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
+                <div class="si-name">${escHtml(item.name)}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- MAIN CANVAS -->
+      <div class="builder-canvas">
+        <div class="canvas-toolbar">
+          <input type="text" id="outfit-name-input" placeholder="Outfit name…" value="${escHtml(state.builderName)}" maxlength="60">
+          <div class="outfit-tags-input" id="outfit-tags-wrap">
+            ${state.builderTags.map(t => `
+              <span class="tag-chip active" style="font-size:12px;padding:4px 10px;">
+                ${escHtml(t)} <span data-remove-outfit-tag="${escHtml(t)}" style="cursor:pointer;margin-left:3px;">✕</span>
+              </span>
+            `).join('')}
+            <input type="text" id="outfit-tag-input" placeholder="Add tag…" style="border:1px solid var(--border);border-radius:16px;padding:5px 12px;font-size:13px;outline:none;width:110px;">
+          </div>
+          <button class="btn btn-secondary" id="clear-builder-btn">Clear</button>
+          <button class="btn btn-primary" id="save-outfit-btn">Save Outfit</button>
+        </div>
+        <div class="canvas-main">
+          <div class="outfit-preview">
+            ${state.builderItems.length === 0 ? `
+              <div class="outfit-empty">
+                <div class="oe-icon">👗</div>
+                <p>Your outfit canvas is empty</p>
+                <span>Click items in the wardrobe panel to add them here</span>
+              </div>
+            ` : `
+              <div class="outfit-slots">
+                ${CATEGORIES.map(cat => {
+                  const items = (grouped[cat.id] || []);
+                  if (items.length === 0) return '';
+                  return `
+                    <div class="outfit-category-row">
+                      <div class="outfit-category-label">${cat.emoji} ${cat.label}</div>
+                      <div class="outfit-items-row">
+                        ${items.map(item => `
+                          <div class="outfit-item-card">
+                            ${item.imageUrl
+                              ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                              : ''}
+                            <div class="oic-placeholder" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
+                            <div class="oic-name">${escHtml(item.name)}</div>
+                            <button class="oic-remove" data-remove-from-builder="${item.id}" title="Remove">✕</button>
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  setupBuilderEvents();
+}
+
+function setupBuilderEvents() {
+  // Sidebar search
+  document.getElementById('builder-search').addEventListener('input', e => {
+    state.builderSearch = e.target.value;
+    renderBuilderSidebar();
+  });
+
+  // Category filter
+  document.querySelectorAll('[data-cat]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      state.builderFilter = chip.dataset.cat;
+      renderBuilderSidebar();
+    });
+  });
+
+  // Toggle items
+  document.getElementById('sidebar-items').addEventListener('click', e => {
+    const item = e.target.closest('[data-toggle-item]');
+    if (item) {
+      toggleBuilderItem(item.dataset.toggleItem);
+      renderBuilderCanvas();
+      renderBuilderSidebar();
+    }
+  });
+
+  // Remove from builder
+  document.querySelector('.canvas-main')?.addEventListener('click', e => {
+    const btn = e.target.closest('[data-remove-from-builder]');
+    if (btn) {
+      toggleBuilderItem(btn.dataset.removeFromBuilder);
+      renderBuilderCanvas();
+      renderBuilderSidebar();
+    }
+  });
+
+  // Outfit name
+  document.getElementById('outfit-name-input').addEventListener('input', e => {
+    state.builderName = e.target.value;
+  });
+
+  // Outfit tags
+  const tagIn = document.getElementById('outfit-tag-input');
+  tagIn.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const v = tagIn.value.trim().replace(/,$/, '');
+      if (v && !state.builderTags.includes(v)) {
+        state.builderTags = [...state.builderTags, v];
+        renderBuilderToolbar();
+      }
+    }
+  });
+
+  document.getElementById('outfit-tags-wrap').addEventListener('click', e => {
+    const rm = e.target.closest('[data-remove-outfit-tag]');
+    if (rm) {
+      const tag = rm.dataset.removeOutfitTag;
+      state.builderTags = state.builderTags.filter(t => t !== tag);
+      renderBuilderToolbar();
+    }
+  });
+
+  // Clear
+  document.getElementById('clear-builder-btn').addEventListener('click', () => {
+    if (state.builderItems.length === 0 && !state.builderName) return;
+    if (confirm('Clear the current outfit?')) {
+      state.builderItems = [];
+      state.builderName = '';
+      state.builderTags = [];
+      renderBuilder(document.getElementById('content'));
+    }
+  });
+
+  // Save
+  document.getElementById('save-outfit-btn').addEventListener('click', saveOutfit);
+}
+
+function renderBuilderSidebar() {
+  let sidebarItems = state.wardrobe;
+  if (state.builderSearch) {
+    const q = state.builderSearch.toLowerCase();
+    sidebarItems = sidebarItems.filter(i =>
+      i.name.toLowerCase().includes(q) ||
+      i.tags.some(t => t.toLowerCase().includes(q))
+    );
+  }
+  if (state.builderFilter) {
+    sidebarItems = sidebarItems.filter(i => i.category === state.builderFilter);
+  }
+
+  document.querySelectorAll('[data-cat]').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.cat === state.builderFilter);
+  });
+
+  document.getElementById('sidebar-items').innerHTML = sidebarItems.length === 0 ? `
+    <div style="grid-column:span 2;text-align:center;padding:20px;color:var(--text2);font-size:13px;">
+      ${state.wardrobe.length === 0 ? 'Add items to your wardrobe first' : 'No items found'}
+    </div>
+  ` : sidebarItems.map(item => {
+    const cat = getCategoryInfo(item.category);
+    const inOutfit = state.builderItems.includes(item.id);
+    return `
+      <div class="sidebar-item ${inOutfit ? 'in-outfit' : ''}" data-toggle-item="${item.id}" title="${escHtml(item.name)}">
+        ${item.imageUrl
+          ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+          : ''}
+        <div class="si-placeholder" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
+        <div class="si-name">${escHtml(item.name)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderBuilderCanvas() {
+  const grouped = {};
+  CATEGORIES.forEach(c => {
+    const items = state.builderItems
+      .map(id => getItemById(id))
+      .filter(i => i && i.category === c.id);
+    if (items.length > 0) grouped[c.id] = items;
+  });
+
+  const preview = document.querySelector('.outfit-preview');
+  if (!preview) return;
+
+  preview.innerHTML = state.builderItems.length === 0 ? `
+    <div class="outfit-empty">
+      <div class="oe-icon">👗</div>
+      <p>Your outfit canvas is empty</p>
+      <span>Click items in the wardrobe panel to add them here</span>
+    </div>
+  ` : `
+    <div class="outfit-slots">
+      ${CATEGORIES.map(cat => {
+        const items = grouped[cat.id] || [];
+        if (items.length === 0) return '';
+        return `
+          <div class="outfit-category-row">
+            <div class="outfit-category-label">${cat.emoji} ${cat.label}</div>
+            <div class="outfit-items-row">
+              ${items.map(item => `
+                <div class="outfit-item-card">
+                  ${item.imageUrl
+                    ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                    : ''}
+                  <div class="oic-placeholder" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
+                  <div class="oic-name">${escHtml(item.name)}</div>
+                  <button class="oic-remove" data-remove-from-builder="${item.id}" title="Remove">✕</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  // Re-attach remove listeners
+  preview.querySelectorAll('[data-remove-from-builder]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      toggleBuilderItem(btn.dataset.removeFromBuilder);
+      renderBuilderCanvas();
+      renderBuilderSidebar();
+    });
+  });
+}
+
+function renderBuilderToolbar() {
+  const wrap = document.getElementById('outfit-tags-wrap');
+  const nameInput = document.getElementById('outfit-name-input');
+  if (!wrap) return;
+
+  wrap.innerHTML = `
+    ${state.builderTags.map(t => `
+      <span class="tag-chip active" style="font-size:12px;padding:4px 10px;">
+        ${escHtml(t)} <span data-remove-outfit-tag="${escHtml(t)}" style="cursor:pointer;margin-left:3px;">✕</span>
+      </span>
+    `).join('')}
+    <input type="text" id="outfit-tag-input" placeholder="Add tag…" style="border:1px solid var(--border);border-radius:16px;padding:5px 12px;font-size:13px;outline:none;width:110px;">
+  `;
+
+  const tagIn = document.getElementById('outfit-tag-input');
+  tagIn.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const v = tagIn.value.trim().replace(/,$/, '');
+      if (v && !state.builderTags.includes(v)) {
+        state.builderTags = [...state.builderTags, v];
+        renderBuilderToolbar();
+      }
+    }
+  });
+
+  wrap.addEventListener('click', e => {
+    const rm = e.target.closest('[data-remove-outfit-tag]');
+    if (rm) {
+      const tag = rm.dataset.removeOutfitTag;
+      state.builderTags = state.builderTags.filter(t => t !== tag);
+      renderBuilderToolbar();
+    }
+  });
+}
+
+function saveOutfit() {
+  if (state.builderItems.length === 0) { toast('Add at least one item to the outfit', 'error'); return; }
+  const name = document.getElementById('outfit-name-input')?.value.trim() || '';
+  if (!name) { toast('Please give your outfit a name', 'error'); return; }
+
+  state.outfits.unshift({
+    id: uid(),
+    name,
+    items: [...state.builderItems],
+    tags: [...state.builderTags],
+    createdAt: Date.now(),
+  });
+  saveData();
+
+  state.builderItems = [];
+  state.builderName = '';
+  state.builderTags = [];
+
+  toast('Outfit saved!', 'success');
+  switchTab('outfits');
+}
+
+// ═══════════════════════════════════════════════
+// OUTFITS TAB
+// ═══════════════════════════════════════════════
+function renderOutfits(root) {
+  const allTags = getAllOutfitTags();
+
+  let filtered = state.outfits;
+  if (state.outfitsSearch) {
+    const q = state.outfitsSearch.toLowerCase();
+    filtered = filtered.filter(o =>
+      o.name.toLowerCase().includes(q) ||
+      o.tags.some(t => t.toLowerCase().includes(q))
+    );
+  }
+  if (state.outfitsTags.length > 0) {
+    filtered = filtered.filter(o =>
+      state.outfitsTags.every(t => o.tags.includes(t))
+    );
+  }
+
+  root.innerHTML = `
+    <div>
+      <div class="outfits-toolbar">
+        <input class="search-input" type="text" id="outfits-search" placeholder="Search outfits…" value="${escHtml(state.outfitsSearch)}">
+        <div class="tag-filters" id="outfit-tag-filters">
+          ${allTags.map(t => `
+            <span class="tag-chip ${state.outfitsTags.includes(t) ? 'active' : ''}" data-otag="${escHtml(t)}">${escHtml(t)}</span>
+          `).join('')}
+        </div>
+        <button class="btn btn-primary" onclick="switchTab('builder')">+ Create Outfit</button>
+      </div>
+
+      <div class="outfits-grid">
+        ${filtered.length === 0 ? `
+          <div class="empty-state" style="grid-column:1/-1">
+            <div class="empty-icon">✨</div>
+            <p>${state.outfits.length === 0 ? 'No outfits yet' : 'No outfits match your search'}</p>
+            <span>${state.outfits.length === 0 ? 'Use the Outfit Builder to create your first combination' : 'Try different filters'}</span>
+          </div>
+        ` : filtered.map(outfit => renderOutfitCard(outfit)).join('')}
+      </div>
+    </div>
+  `;
+
+  // Search
+  document.getElementById('outfits-search').addEventListener('input', e => {
+    state.outfitsSearch = e.target.value;
+    renderOutfits(root);
+  });
+
+  // Tag filters
+  document.querySelectorAll('[data-otag]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const tag = chip.dataset.otag;
+      if (state.outfitsTags.includes(tag)) {
+        state.outfitsTags = state.outfitsTags.filter(t => t !== tag);
+      } else {
+        state.outfitsTags = [...state.outfitsTags, tag];
+      }
+      renderOutfits(root);
+    });
+  });
+
+  // Outfit card clicks
+  document.querySelector('.outfits-grid').addEventListener('click', e => {
+    const del = e.target.closest('[data-delete-outfit]');
+    if (del) { deleteOutfit(del.dataset.deleteOutfit, root); return; }
+    const card = e.target.closest('.outfit-card');
+    if (card) openViewOutfit(card.dataset.outfitId);
+  });
+}
+
+function renderOutfitCard(outfit) {
+  const previewItems = outfit.items.slice(0, 6).map(id => getItemById(id)).filter(Boolean);
+  const date = new Date(outfit.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  return `
+    <div class="outfit-card" data-outfit-id="${outfit.id}">
+      <button class="oc-delete" data-delete-outfit="${outfit.id}" title="Delete outfit">✕</button>
+      <div class="oc-preview">
+        ${previewItems.length === 0
+          ? `<div class="oc-preview-item" style="grid-column:span 3"><div class="oc-ph">👗</div></div>`
+          : previewItems.slice(0, 3).map(item => `
+            <div class="oc-preview-item">
+              ${item.imageUrl
+                ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                : ''}
+              <div class="oc-ph" ${item.imageUrl ? 'style="display:none"' : ''}>${getCategoryInfo(item.category).emoji}</div>
+            </div>
+          `).join('')}
+      </div>
+      <div class="oc-body">
+        <div class="oc-name">${escHtml(outfit.name)}</div>
+        <div class="oc-meta">${outfit.items.length} piece${outfit.items.length !== 1 ? 's' : ''} · ${date}</div>
+        <div class="oc-tags">${outfit.tags.map(t => `<span class="oc-tag">${escHtml(t)}</span>`).join('')}</div>
+      </div>
+    </div>
+  `;
+}
+
+function deleteOutfit(id, root) {
+  if (!confirm('Delete this outfit?')) return;
+  state.outfits = state.outfits.filter(o => o.id !== id);
+  saveData();
+  renderOutfits(root || document.getElementById('content'));
+  toast('Outfit deleted');
+}
+
+function openViewOutfit(id) {
+  const outfit = state.outfits.find(o => o.id === id);
+  if (!outfit) return;
+
+  const grouped = {};
+  CATEGORIES.forEach(c => {
+    const items = outfit.items.map(iid => getItemById(iid)).filter(i => i && i.category === c.id);
+    if (items.length > 0) grouped[c.id] = items;
+  });
+
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal" style="max-width:580px">
+        <div class="modal-header">
+          <div>
+            <h2>${escHtml(outfit.name)}</h2>
+            <div style="font-size:13px;color:var(--text2);margin-top:3px;">
+              ${outfit.items.length} piece${outfit.items.length !== 1 ? 's' : ''}
+              ${outfit.tags.length ? ' · ' + outfit.tags.map(t => escHtml(t)).join(', ') : ''}
+            </div>
+          </div>
+          <button class="modal-close" id="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="view-outfit-grid">
+            ${CATEGORIES.map(cat => {
+              const items = grouped[cat.id] || [];
+              if (items.length === 0) return '';
+              return `
+                <div>
+                  <div class="view-outfit-category">${cat.emoji} ${cat.label}</div>
+                  <div class="view-outfit-items">
+                    ${items.map(item => `
+                      <div class="view-outfit-item">
+                        ${item.imageUrl
+                          ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                          : ''}
+                        <div class="voi-ph" ${item.imageUrl ? 'style="display:none"' : ''}>${cat.emoji}</div>
+                        <div class="voi-name">${escHtml(item.name)}</div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="modal-close2">Close</button>
+          <button class="btn btn-primary" id="edit-in-builder-btn">Edit in Builder</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('modal-close').onclick = closeModal;
+  document.getElementById('modal-close2').onclick = closeModal;
+  document.getElementById('modal-overlay').onclick = e => { if (e.target.id === 'modal-overlay') closeModal(); };
+  document.getElementById('edit-in-builder-btn').onclick = () => {
+    state.builderItems = [...outfit.items];
+    state.builderName = outfit.name;
+    state.builderTags = [...outfit.tags];
+    closeModal();
+    switchTab('builder');
+  };
+}
+
+// ═══════════════════════════════════════════════
+// ESCAPE HTML
+// ═══════════════════════════════════════════════
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+loadData();
+render();
+</script>
+</body>
+</html>
