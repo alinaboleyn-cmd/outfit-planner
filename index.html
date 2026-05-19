@@ -307,7 +307,13 @@ nav button.active { background: var(--accent-light); color: var(--accent-dark); 
 .sidebar-search input:focus { border-color: var(--accent); }
 
 .sidebar-filter {
-  padding: 8px 12px;
+  padding: 8px 12px 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.sidebar-tag-filters {
+  padding: 4px 12px 8px;
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-wrap: wrap;
@@ -530,6 +536,23 @@ nav button.active { background: var(--accent-light); color: var(--accent-dark); 
 .ci-btn-danger:hover { background: #d94040; }
 .ci-btn-on { background: var(--accent); }
 .ci-btn-on:hover { background: var(--accent-dark); }
+
+.ci-resize {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: white;
+  border: 2px solid var(--accent);
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 3;
+}
+.canvas-item:hover .ci-resize { opacity: 1; }
+.ci-resize-nw { top: -5px; left: -5px; cursor: nw-resize; }
+.ci-resize-ne { top: -5px; right: -5px; cursor: ne-resize; }
+.ci-resize-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+.ci-resize-se { bottom: -5px; right: -5px; cursor: se-resize; }
 
 /* ── OUTFITS TAB ── */
 .outfits-layout { padding: 20px 24px; }
@@ -858,6 +881,7 @@ const state = {
   outfitsTags: [],
   builderSearch: '',
   builderFilter: '',
+  builderSidebarTags: [],  // active tag filters in builder sidebar
   builderOutfitId: null,  // set when editing an existing outfit
 };
 
@@ -1328,6 +1352,7 @@ function toggleBuilderItem(id) {
       x: 20 + (count % 4) * 160,
       y: 20 + Math.floor(count / 4) * 220,
       noBg: false,
+      w: 140,
     });
   }
 }
@@ -1344,6 +1369,12 @@ function renderBuilder(root) {
   if (state.builderFilter) {
     sidebarItems = sidebarItems.filter(i => i.category === state.builderFilter);
   }
+  if (state.builderSidebarTags.length > 0) {
+    sidebarItems = sidebarItems.filter(i =>
+      state.builderSidebarTags.every(t => i.tags.includes(t))
+    );
+  }
+  const allSidebarTags = getAllTags();
 
   root.innerHTML = `
     <div class="builder-layout">
@@ -1359,6 +1390,13 @@ function renderBuilder(root) {
             <span class="tag-chip ${state.builderFilter === c.id ? 'active' : ''}" data-cat="${c.id}">${c.emoji}</span>
           `).join('')}
         </div>
+        ${allSidebarTags.length > 0 ? `
+        <div class="sidebar-tag-filters" id="sidebar-tag-filters">
+          ${allSidebarTags.map(t => `
+            <span class="tag-chip ${state.builderSidebarTags.includes(t) ? 'active' : ''}" data-sidebar-tag="${escHtml(t)}">${escHtml(t)}</span>
+          `).join('')}
+        </div>
+        ` : ''}
         <div class="sidebar-items" id="sidebar-items">
           ${sidebarItems.length === 0 ? `
             <div style="grid-column:span 2;text-align:center;padding:20px;color:var(--text2);font-size:13px;">
@@ -1417,6 +1455,19 @@ function setupBuilderEvents() {
   document.querySelectorAll('[data-cat]').forEach(chip => {
     chip.addEventListener('click', () => {
       state.builderFilter = chip.dataset.cat;
+      renderBuilderSidebar();
+    });
+  });
+
+  // Sidebar tag filter
+  document.querySelectorAll('[data-sidebar-tag]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const t = chip.dataset.sidebarTag;
+      if (state.builderSidebarTags.includes(t)) {
+        state.builderSidebarTags = state.builderSidebarTags.filter(x => x !== t);
+      } else {
+        state.builderSidebarTags = [...state.builderSidebarTags, t];
+      }
       renderBuilderSidebar();
     });
   });
@@ -1486,9 +1537,18 @@ function renderBuilderSidebar() {
   if (state.builderFilter) {
     sidebarItems = sidebarItems.filter(i => i.category === state.builderFilter);
   }
+  if (state.builderSidebarTags.length > 0) {
+    sidebarItems = sidebarItems.filter(i =>
+      state.builderSidebarTags.every(t => i.tags.includes(t))
+    );
+  }
 
   document.querySelectorAll('[data-cat]').forEach(chip => {
     chip.classList.toggle('active', chip.dataset.cat === state.builderFilter);
+  });
+
+  document.querySelectorAll('[data-sidebar-tag]').forEach(chip => {
+    chip.classList.toggle('active', state.builderSidebarTags.includes(chip.dataset.sidebarTag));
   });
 
   document.getElementById('sidebar-items').innerHTML = sidebarItems.length === 0 ? `
@@ -1520,14 +1580,15 @@ function buildFreeCanvas() {
           <span>Click items in the wardrobe to place them here</span>
         </div>
       ` : state.builderItems.map((bItem) => {
-        const {id, x, y, noBg, processedUrl} = bItem;
+        const {id, x, y, noBg, processedUrl, w} = bItem;
         const item = getItemById(id);
         if (!item) return '';
         const cat = getCategoryInfo(item.category);
         const displayUrl = (noBg === true && processedUrl) ? processedUrl : item.imageUrl;
         const isLoading = noBg === 'loading';
+        const width = w || 140;
         return `
-          <div class="canvas-item${noBg === true ? ' no-bg' : ''}" data-canvas-id="${id}" style="left:${x}px;top:${y}px;">
+          <div class="canvas-item${noBg === true ? ' no-bg' : ''}" data-canvas-id="${id}" style="left:${x}px;top:${y}px;width:${width}px;">
             ${displayUrl
               ? `<img src="${escHtml(displayUrl)}" alt="${escHtml(item.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
               : ''}
@@ -1539,6 +1600,10 @@ function buildFreeCanvas() {
               <button class="ci-btn ${noBg === true ? 'ci-btn-on' : ''}" data-toggle-bg="${id}" title="${noBg === true ? 'Restore background' : 'Remove background'}" ${isLoading ? 'disabled' : ''}>${isLoading ? '…' : '◻'}</button>
               <button class="ci-btn ci-btn-danger" data-remove-from-builder="${id}" title="Remove">✕</button>
             </div>
+            <div class="ci-resize ci-resize-nw" data-resize="${id}" data-corner="nw"></div>
+            <div class="ci-resize ci-resize-ne" data-resize="${id}" data-corner="ne"></div>
+            <div class="ci-resize ci-resize-sw" data-resize="${id}" data-corner="sw"></div>
+            <div class="ci-resize ci-resize-se" data-resize="${id}" data-corner="se"></div>
           </div>
         `;
       }).join('')}
@@ -1563,6 +1628,24 @@ function setupCanvasDrag() {
   if (!canvas) return;
 
   canvas.addEventListener('mousedown', e => {
+    // Resize handle
+    const rh = e.target.closest('[data-resize]');
+    if (rh) {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = rh.dataset.resize;
+      const corner = rh.dataset.corner;
+      const bItem = state.builderItems.find(i => i.id === id);
+      if (!bItem) return;
+      canvasDrag = {
+        type: 'resize', id, corner,
+        startX: e.clientX, startY: e.clientY,
+        origW: bItem.w || 140, origX: bItem.x, origY: bItem.y,
+        el: e.target.closest('.canvas-item'), canvas,
+      };
+      return;
+    }
+
     if (e.target.closest('.ci-controls')) return;
     const el = e.target.closest('.canvas-item');
     if (!el) return;
@@ -1571,7 +1654,7 @@ function setupCanvasDrag() {
     const bItem = state.builderItems.find(i => i.id === id);
     if (!bItem) return;
     const rect = canvas.getBoundingClientRect();
-    canvasDrag = { id, el, canvas, offsetX: e.clientX - rect.left - bItem.x, offsetY: e.clientY - rect.top - bItem.y };
+    canvasDrag = { type: 'move', id, el, canvas, offsetX: e.clientX - rect.left - bItem.x, offsetY: e.clientY - rect.top - bItem.y };
     el.classList.add('is-dragging');
   });
 
@@ -1589,9 +1672,28 @@ function setupCanvasDrag() {
 
 function onCanvasMouseMove(e) {
   if (!canvasDrag) return;
-  const rect = canvasDrag.canvas.getBoundingClientRect();
   const bItem = state.builderItems.find(i => i.id === canvasDrag.id);
   if (!bItem) return;
+
+  if (canvasDrag.type === 'resize') {
+    const dx = e.clientX - canvasDrag.startX;
+    const minW = 60;
+    const corner = canvasDrag.corner;
+    const isLeft = corner === 'nw' || corner === 'sw';
+    let newW = isLeft
+      ? Math.max(minW, canvasDrag.origW - dx)
+      : Math.max(minW, canvasDrag.origW + dx);
+    let newX = isLeft
+      ? canvasDrag.origX + (canvasDrag.origW - newW)
+      : canvasDrag.origX;
+    bItem.w = newW;
+    bItem.x = newX;
+    canvasDrag.el.style.width = newW + 'px';
+    canvasDrag.el.style.left = newX + 'px';
+    return;
+  }
+
+  const rect = canvasDrag.canvas.getBoundingClientRect();
   bItem.x = Math.max(0, e.clientX - rect.left - canvasDrag.offsetX);
   bItem.y = Math.max(0, e.clientY - rect.top - canvasDrag.offsetY);
   canvasDrag.el.style.left = bItem.x + 'px';
@@ -1600,7 +1702,7 @@ function onCanvasMouseMove(e) {
 
 function onCanvasMouseUp() {
   if (!canvasDrag) return;
-  canvasDrag.el.classList.remove('is-dragging');
+  if (canvasDrag.type === 'move') canvasDrag.el.classList.remove('is-dragging');
   canvasDrag = null;
 }
 
